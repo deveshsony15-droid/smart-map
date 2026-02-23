@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Location Messaging System</title>
+    
+    <!-- Tailwind CSS for Styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS for Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f3f4f6;
+        }
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 0.75rem;
+            z-index: 1; /* Keep map below modals if any */
+        }
+        /* Custom scrollbar for logs */
+        .log-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .log-container::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold text-indigo-700 mb-2">Location Auto-Message System 📍</h1>
+        <p class="text-gray-600 mb-6">Map par ek area set karein. Jab aap us area mein enter karenge, automatically message send ho jayega.</p>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Map -->
+            <div class="lg:col-span-2 bg-white p-4 rounded-xl shadow-md border border-gray-100">
+                <h2 class="text-lg font-semibold text-gray-800 mb-3">1. Target Area Select Karein</h2>
+                <p class="text-sm text-gray-500 mb-3">Map par click karke apni destination set karein jahan pahonchte hi message bhejna hai.</p>
+                <div id="map" class="shadow-inner border border-gray-200"></div>
+            </div>
+
+            <!-- Right Column: Controls -->
+            <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100 flex flex-col gap-4">
+                <h2 class="text-lg font-semibold text-gray-800 border-b pb-2">2. Settings</h2>
+
+                <!-- Radius Input -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Area Radius (Meters mein)</label>
+                    <input type="number" id="radiusInput" value="500" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" onchange="updateCircleRadius()">
+                    <p class="text-xs text-gray-400 mt-1">Kitne meter pehle message bhejna hai?</p>
+                </div>
+
+                <!-- Recipient Input -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kisko Bhejna Hai? (Number/Naam)</label>
+                    <input type="text" id="recipientInput" placeholder="+91 9876543210" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all">
+                </div>
+
+                <!-- Message Input -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Kya Message Bhejna Hai?</label>
+                    <textarea id="messageInput" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all" placeholder="Main yahan pahonch gaya hu!"></textarea>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-2">
+                    <button id="startBtn" onclick="startTracking()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex justify-center items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clip-rule="evenodd" />
+                        </svg>
+                        Tracking Shuru Karein
+                    </button>
+                    
+                    <button id="stopBtn" onclick="stopTracking()" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 flex justify-center items-center gap-2 hidden mt-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                        </svg>
+                        Tracking Rokein
+                    </button>
+                </div>
+
+                <!-- Status & Logs -->
+                <div class="mt-4 border-t pt-4">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">System Logs:</h3>
+                    <div id="logs" class="bg-gray-50 p-3 rounded-lg border border-gray-200 h-32 overflow-y-auto text-xs space-y-2 log-container text-gray-600 font-mono">
+                        <div>> System ready. Map par target set karein.</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS for Maps -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // --- Global Variables ---
+        let map;
+        let targetMarker = null;
+        let targetCircle = null;
+        let userMarker = null;
+        let watchId = null;
+        let isMessageSent = false; // Taki baar-baar message na jaye
+
+        // --- 1. Map Initialize Karna ---
+        function initMap() {
+            // Default location (Jaipur/India center)
+            map = L.map('map').setView([26.9124, 75.7873], 13);
+
+            // OpenStreetMap ki free tiles use kar rahe hain
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Jab user map par click kare, target set ho jaye
+            map.on('click', function(e) {
+                if(watchId) {
+                    addLog("⚠️ Tracking chalu hai, target change nahi kar sakte. Pehle tracking rokein.", "text-orange-500");
+                    return;
+                }
+                setTargetLocation(e.latlng.lat, e.latlng.lng);
+            });
+        }
+
+        // --- 2. Target Location Set Karna ---
+        function setTargetLocation(lat, lng) {
+            let radius = parseInt(document.getElementById('radiusInput').value) || 500;
+
+            // Agar pehle se marker hai toh remove karo
+            if (targetMarker) map.removeLayer(targetMarker);
+            if (targetCircle) map.removeLayer(targetCircle);
+
+            // Naya marker aur circle lagao
+            targetMarker = L.marker([lat, lng], {title: "Destination"}).addTo(map);
+            targetCircle = L.circle([lat, lng], {
+                color: 'red',
+                fillColor: '#f03',
+                fillOpacity: 0.2,
+                radius: radius
+            }).addTo(map);
+
+            targetMarker.bindPopup("<b>Target Location</b><br>Is area mein aate hi message jayega.").openPopup();
+            
+            isMessageSent = false; // Naya target set hua hai, reset message flag
+            addLog(`✅ Target set kiya gaya: Lat ${lat.toFixed(4)}, Lng ${lng.toFixed(4)}`, "text-green-600");
+        }
+
+        // Radius input change hone par circle update karo
+        function updateCircleRadius() {
+            if (targetCircle && targetMarker) {
+                let radius = parseInt(document.getElementById('radiusInput').value) || 500;
+                targetCircle.setRadius(radius);
+                addLog(`🔄 Radius update kiya gaya: ${radius} meters`, "text-blue-500");
+            }
+        }
+
+        // --- 3. Tracking Logic (GPS) ---
+        function startTracking() {
+            if (!targetMarker) {
+                alert("Pehle map par click karke ek Target Location set karein!");
+                return;
+            }
+
+            let recipient = document.getElementById('recipientInput').value;
+            let msg = document.getElementById('messageInput').value;
+
+            if(!recipient || !msg) {
+                alert("Kripya Recipient ka number aur Message details bharein.");
+                return;
+            }
+
+            // UI update
+            document.getElementById('startBtn').classList.add('hidden');
+            document.getElementById('stopBtn').classList.remove('hidden');
+            document.getElementById('radiusInput').disabled = true;
+
+            isMessageSent = false;
+            addLog("🚀 Tracking shuru ki gayi... GPS location ka wait kar rahe hain.", "text-indigo-600");
+
+            // Browser ka Geolocation API use karke live location track karna
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(
+                    positionSuccess, 
+                    positionError, 
+                    { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+                );
+            } else {
+                addLog("❌ Aapka browser Geolocation support nahi karta.", "text-red-500");
+            }
+        }
+
+        function stopTracking() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+            }
+            
+            // UI update
+            document.getElementById('stopBtn').classList.add('hidden');
+            document.getElementById('startBtn').classList.remove('hidden');
+            document.getElementById('radiusInput').disabled = false;
+            
+            if(userMarker) {
+                map.removeLayer(userMarker);
+                userMarker = null;
+            }
+
+            addLog("🛑 Tracking rok di gayi hai.", "text-red-500");
+        }
+
+        // --- 4. Location Update Hone Par Kya Hoga ---
+        function positionSuccess(position) {
+            let userLat = position.coords.latitude;
+            let userLng = position.coords.longitude;
+            let userLatLng = L.latLng(userLat, userLng);
+
+            // User ka marker map par update karna
+            if (!userMarker) {
+                // Pehli baar location mili hai toh marker banao (Blue icon)
+                userMarker = L.circleMarker(userLatLng, {
+                    color: '#fff',
+                    fillColor: '#3b82f6', // Tailwind blue-500
+                    fillOpacity: 1,
+                    radius: 8,
+                    weight: 2
+                }).addTo(map);
+                map.setView(userLatLng, 14); // Map ko user pe focus karo
+            } else {
+                userMarker.setLatLng(userLatLng); // Location update
+            }
+
+            // Distance calculate karna (Haversine formula automatically Leaflet karta hai)
+            let targetLatLng = targetMarker.getLatLng();
+            let distanceInMeters = userLatLng.distanceTo(targetLatLng);
+            let radius = parseInt(document.getElementById('radiusInput').value) || 500;
+
+            // Har 5 sec mein log zyada na bhare, isliye thoda limit karenge
+            // addLog(`📍 Current dist: ${Math.round(distanceInMeters)}m`);
+
+            // --- MAIN LOGIC: Agar user target radius ke andar aa gaya ---
+            if (distanceInMeters <= radius) {
+                targetCircle.setStyle({ color: 'green', fillColor: '#22c55e' }); // Circle green kar do
+                
+                if (!isMessageSent) {
+                    triggerMessageAPI(distanceInMeters);
+                }
+            } else {
+                // Area ke bahar hai
+                targetCircle.setStyle({ color: 'red', fillColor: '#f03' });
+                isMessageSent = false; // Agar bahar chala gaya toh wapas flag reset kar do
+            }
+        }
+
+        function positionError(error) {
+            let errorMsg = "GPS Error.";
+            if (error.code === 1) errorMsg = "Aapne Location ki permission nahi di hai.";
+            if (error.code === 2) errorMsg = "GPS signal nahi mil raha.";
+            addLog(`❌ ${errorMsg}`, "text-red-500");
+        }
+
+        // --- 5. Message Bhejne ka System (Simulation) ---
+        function triggerMessageAPI(distance) {
+            isMessageSent = true;
+            let recipient = document.getElementById('recipientInput').value;
+            let msg = document.getElementById('messageInput').value;
+
+            // Yahan par actual project mein Fetch API se backend server ko call kiya jata hai
+            // Example:
+            // fetch('https://your-backend.com/send-sms', { method: 'POST', body: JSON.stringify({to: recipient, text: msg}) });
+
+            addLog(`🎉 TARGET REACHED! (Distance: ${Math.round(distance)}m)`, "text-green-600 font-bold text-sm");
+            addLog(`📩 SENDING MESSAGE TO: ${recipient}...`, "text-indigo-600 font-bold");
+            addLog(`📝 MESSAGE CONTENT: "${msg}"`, "text-indigo-600");
+            
+            // Ek alert user ko dikhane ke liye
+            setTimeout(() => {
+                alert(`SUCCESS!\n\nMessage Sent to: ${recipient}\n\nMessage: ${msg}`);
+            }, 500);
+        }
+
+        // --- 6. Helper: Logs show karne ke liye ---
+        function addLog(text, colorClass = "text-gray-600") {
+            let logsDiv = document.getElementById('logs');
+            let time = new Date().toLocaleTimeString();
+            let newLog = document.createElement('div');
+            newLog.className = colorClass;
+            newLog.innerHTML = `<span class="text-gray-400">[${time}]</span> ${text}`;
+            logsDiv.appendChild(newLog);
+            
+            // Auto scroll to bottom
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        // Application start karte hi map load karo
+        window.onload = initMap;
+
+    </script>
+</body>
+</html>
